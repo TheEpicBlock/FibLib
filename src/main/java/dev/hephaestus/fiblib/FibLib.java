@@ -179,10 +179,11 @@ public class FibLib {
          */
         @Internal
         public static BlockState get(BlockState state, ServerPlayerEntity player) {
-            if (player == null) {
+            BlockFib fib = fibs.get(state.getBlock());
+            if (fib == null || player == null) {
                 return state;
             }
-            return fibs.get(state.getBlock()).get(state, player);
+            return fib.get(state, player);
         }
 
         /**
