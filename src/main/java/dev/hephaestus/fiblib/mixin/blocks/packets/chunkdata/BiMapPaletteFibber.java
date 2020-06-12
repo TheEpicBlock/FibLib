@@ -14,8 +14,11 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(BiMapPalette.class)
 public class BiMapPaletteFibber<T> implements Fibber {
-    @Shadow @Final private IdList<T> idList;
     ServerPlayerEntity player;
+    @Shadow
+    @Final
+    private IdList<T> idList;
+
     @Redirect(method = "toPacket", at = @At(value = "INVOKE", target = "Lnet/minecraft/util/IdList;getId(Ljava/lang/Object;)I"))
     public int toPacketRedir(IdList<T> idList, T object) {
         return idList.getId((T) FibLib.Blocks.get((BlockState) object, this.player));

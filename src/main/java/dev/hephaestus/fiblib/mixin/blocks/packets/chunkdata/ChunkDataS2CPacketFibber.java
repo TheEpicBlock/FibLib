@@ -28,21 +28,35 @@ import java.util.Map;
 
 @Mixin(ChunkDataS2CPacket.class)
 public abstract class ChunkDataS2CPacketFibber implements ChunkDataFibber {
-    @Shadow private int chunkX;
-    @Shadow private int chunkZ;
-    @Shadow private int verticalStripBitmask;
-    @Shadow private CompoundTag heightmaps;
-    @Shadow private BiomeArray biomeArray;
-    @Shadow private byte[] data;
-    @Shadow private List<CompoundTag> blockEntities;
-    @Shadow private boolean isFullChunk;
-
-    @Shadow protected abstract int getDataSize(WorldChunk chunk, int includedSectionsMark);
-    @Shadow public abstract int writeData(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask);
-    @Shadow protected abstract ByteBuf getWriteBuffer();
-    @Shadow public abstract boolean isFullChunk();
-
+    @Shadow
+    private int chunkX;
+    @Shadow
+    private int chunkZ;
+    @Shadow
+    private int verticalStripBitmask;
+    @Shadow
+    private CompoundTag heightmaps;
+    @Shadow
+    private BiomeArray biomeArray;
+    @Shadow
+    private byte[] data;
+    @Shadow
+    private List<CompoundTag> blockEntities;
+    @Shadow
+    private boolean isFullChunk;
     private ServerPlayerEntity player;
+
+    @Shadow
+    protected abstract int getDataSize(WorldChunk chunk, int includedSectionsMark);
+
+    @Shadow
+    public abstract int writeData(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask);
+
+    @Shadow
+    protected abstract ByteBuf getWriteBuffer();
+
+    @Shadow
+    public abstract boolean isFullChunk();
 
     // We are abusing the empty constructor of ChunkDataS2CPacket HARD here. Basically just constructing it here instead
     @Override
@@ -57,7 +71,7 @@ public abstract class ChunkDataS2CPacketFibber implements ChunkDataFibber {
         Iterator<Map.Entry<Heightmap.Type, Heightmap>> heightmaps = chunk.getHeightmaps().iterator();
 
         Map.Entry<Heightmap.Type, Heightmap> heightmap;
-        while(heightmaps.hasNext()) {
+        while (heightmaps.hasNext()) {
             heightmap = heightmaps.next();
             if ((heightmap.getKey()).shouldSendToClient()) {
                 this.heightmaps.put((heightmap.getKey()).getName(), new LongArrayTag((heightmap.getValue()).asLongArray()));
@@ -76,7 +90,7 @@ public abstract class ChunkDataS2CPacketFibber implements ChunkDataFibber {
         Iterator<Map.Entry<BlockPos, BlockEntity>> blockEntities = chunk.getBlockEntities().entrySet().iterator();
         Map.Entry<BlockPos, BlockEntity> blockEntity;
 
-        while(true) {
+        while (true) {
             int i;
             do {
                 if (!blockEntities.hasNext()) {
@@ -86,7 +100,7 @@ public abstract class ChunkDataS2CPacketFibber implements ChunkDataFibber {
                 blockEntity = blockEntities.next();
                 BlockPos blockPos = blockEntity.getKey();
                 i = blockPos.getY() >> 4;
-            } while(!this.isFullChunk() && (includedSectionsMask & 1 << i) == 0);
+            } while (!this.isFullChunk() && (includedSectionsMask & 1 << i) == 0);
 
             CompoundTag compoundTag = blockEntity.getValue().toInitialChunkDataTag();
             this.blockEntities.add(compoundTag);

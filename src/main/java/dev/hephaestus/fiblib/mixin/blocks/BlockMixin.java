@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class BlockMixin {
     @Inject(method = "onBlockRemoved", at = @At("HEAD"))
     public void removalInjection(BlockState state, World world, BlockPos pos, BlockState newState, boolean moved, CallbackInfo ci) {
-        if (world instanceof ServerWorld) FibLib.Blocks.stopTracking((ServerWorld)world, pos);
+        if (world instanceof ServerWorld) FibLib.Blocks.stopTracking((ServerWorld) world, pos);
     }
 
     @Inject(method = "onBlockAdded", at = @At("HEAD"))

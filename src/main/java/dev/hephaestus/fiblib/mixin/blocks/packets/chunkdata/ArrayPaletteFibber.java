@@ -15,7 +15,12 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 @Mixin(ArrayPalette.class)
 public class ArrayPaletteFibber<T> implements Fibber {
-    @Mutable @Final @Shadow private final IdList<T> idList;
+    @Mutable
+    @Final
+    @Shadow
+    private final IdList<T> idList;
+    private ServerPlayerEntity player;
+
     public ArrayPaletteFibber(IdList<T> idList) {
         this.idList = idList;
     }
@@ -29,8 +34,6 @@ public class ArrayPaletteFibber<T> implements Fibber {
     public int getPacketSizeRedir(IdList<T> idList, T object) {
         return idList.getId((T) FibLib.Blocks.get((BlockState) object, this.player));
     }
-
-    private ServerPlayerEntity player;
 
     @Override
     public void fix(ServerPlayerEntity player) {

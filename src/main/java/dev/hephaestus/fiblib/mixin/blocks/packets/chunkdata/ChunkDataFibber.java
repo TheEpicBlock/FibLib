@@ -17,24 +17,29 @@ import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 @Mixin(ChunkDataS2CPacket.class)
 public abstract class ChunkDataFibber implements Fibber {
+    @Shadow
+    private int verticalStripBitmask;
+    private WorldChunk chunk;
+    private int mask;
+    private ServerPlayerEntity player;
+
     @Inject(method = "writeData(Lnet/minecraft/util/PacketByteBuf;Lnet/minecraft/world/chunk/WorldChunk;I)I", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/chunk/ChunkSection;toPacket(Lnet/minecraft/util/PacketByteBuf;)V"), locals = LocalCapture.CAPTURE_FAILHARD)
     public void fixInjection(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask, CallbackInfoReturnable<Integer> cir, int i, ChunkSection[] chunkSections, int j, int k, ChunkSection chunkSection) {
         Fibber.fix(chunkSection, this.player);
     }
 
-    @Shadow private int verticalStripBitmask;
-    @Shadow protected abstract ByteBuf getWriteBuffer();
-    @Shadow public abstract int writeData(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask);
+    @Shadow
+    protected abstract ByteBuf getWriteBuffer();
 
-    private WorldChunk chunk;
-    private int mask;
+    @Shadow
+    public abstract int writeData(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask);
+
     @Inject(method = "<init>(Lnet/minecraft/world/chunk/WorldChunk;I)V", at = @At("TAIL"))
     public void initInjection(WorldChunk chunk, int includedSectionsMask, CallbackInfo ci) {
         this.chunk = chunk;
         this.mask = includedSectionsMask;
     }
 
-    private ServerPlayerEntity player;
     @Override
     public void fix(ServerPlayerEntity player) {
         this.player = player;

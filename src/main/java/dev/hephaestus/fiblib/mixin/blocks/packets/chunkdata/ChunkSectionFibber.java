@@ -12,7 +12,10 @@ import org.spongepowered.asm.mixin.Shadow;
 
 @Mixin(ChunkSection.class)
 public class ChunkSectionFibber implements Fibber {
-    @Mutable @Final @Shadow private PalettedContainer<BlockState> container;
+    @Mutable
+    @Final
+    @Shadow
+    private PalettedContainer<BlockState> container;
 
     @Override
     public void fix(ServerPlayerEntity player) {

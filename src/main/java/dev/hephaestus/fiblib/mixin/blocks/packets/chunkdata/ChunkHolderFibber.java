@@ -14,10 +14,16 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ChunkHolder.class)
 public class ChunkHolderFibber {
-    @Shadow @Final private ChunkHolder.PlayersWatchingChunkProvider playersWatchingChunkProvider;
-    @Shadow @Final private ChunkPos pos;
-    @Shadow private int blockUpdateCount;
-    @Shadow private int sectionsNeedingUpdateMask;
+    @Shadow
+    @Final
+    private ChunkHolder.PlayersWatchingChunkProvider playersWatchingChunkProvider;
+    @Shadow
+    @Final
+    private ChunkPos pos;
+    @Shadow
+    private int blockUpdateCount;
+    @Shadow
+    private int sectionsNeedingUpdateMask;
 
     @Inject(method = "flushUpdates", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/world/ChunkHolder;sendPacketToPlayersWatching(Lnet/minecraft/network/Packet;Z)V", ordinal = 3), cancellable = true)
     public void fukkit(WorldChunk worldChunk, CallbackInfo ci) {

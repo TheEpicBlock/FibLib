@@ -9,7 +9,8 @@ import org.spongepowered.asm.mixin.Shadow;
 
 @Mixin(PalettedContainer.class)
 public class PalettedContainerFibber<T> implements Fibber {
-    @Shadow private Palette<T> palette;
+    @Shadow
+    private Palette<T> palette;
 
     @Override
     public void fix(ServerPlayerEntity player) {
