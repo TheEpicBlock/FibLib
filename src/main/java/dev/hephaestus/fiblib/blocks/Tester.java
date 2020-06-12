@@ -23,7 +23,7 @@ public class Tester implements ModInitializer {
             blocksToFib.add(Blocks.EMERALD_ORE);
 
             while (!blocksToFib.isEmpty()) {
-                FibLib.Blocks.register(DimensionType.OVERWORLD, blocksToFib.pop(), (state, player) ->
+                FibLib.Blocks.register(blocksToFib.pop(), (state, player) ->
                         player.isCreative() ?
                                 state :
                                 Blocks.GLOWSTONE.getDefaultState()
