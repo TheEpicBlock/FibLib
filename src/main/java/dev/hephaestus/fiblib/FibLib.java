@@ -21,6 +21,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 
+@SuppressWarnings("ALL")
 public class FibLib {
 	public static final String MOD_ID = "fiblib";
 	private static final String MOD_NAME = "FibLib";
