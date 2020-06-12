@@ -2,6 +2,7 @@ package dev.hephaestus.fiblib;
 
 import com.google.common.collect.Iterables;
 import dev.hephaestus.fiblib.blocks.BlockFib;
+import dev.hephaestus.fiblib.mixin.blocks.BlockMixin;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.fabricmc.loader.api.FabricLoader;
@@ -54,7 +55,7 @@ public class FibLib {
 
 		private static final HashMap<DimensionType, Stack<Pair<Block, BlockPos>>> PENDING_BLOCKS = new HashMap<>();
 
-		private final HashMap<Block, LongSet> blocks = new HashMap<>();
+		private final HashMap<Block, LongSet> trackedBlocks = new HashMap<>();
 		private final HashMap<Block, BlockFib> fibs = new HashMap<>();
 
 		private final HashMap<UUID, HashMap<BlockState, BlockState>> lookups = new HashMap<>();
@@ -115,24 +116,24 @@ public class FibLib {
 		@Internal
 		@Override
 		public void fromTag(CompoundTag tag) {
-			blocks.clear();
+			trackedBlocks.clear();
 
-			CompoundTag fibTag = tag.getCompound(SAVE_KEY);
+			CompoundTag blockSaveTag = tag.getCompound(SAVE_KEY);
 
-			for (String k : fibTag.getKeys()) {
-				blocks.put(Registry.BLOCK.get(new Identifier(k)), new LongOpenHashSet(fibTag.getLongArray(k)));
+			for (String k : blockSaveTag.getKeys()) {
+				trackedBlocks.put(Registry.BLOCK.get(new Identifier(k)), new LongOpenHashSet(blockSaveTag.getLongArray(k)));
 			}
 		}
 
 		@Internal
 		@Override
 		public CompoundTag toTag(CompoundTag tag) {
-			CompoundTag fibTag = new CompoundTag();
-			for (Map.Entry<Block, LongSet> e : blocks.entrySet()) {
-				fibTag.put(Registry.BLOCK.getId(e.getKey()).toString(), new LongArrayTag(e.getValue()));
+			CompoundTag blockSaveTag = new CompoundTag();
+			for (Map.Entry<Block, LongSet> e : trackedBlocks.entrySet()) {
+				blockSaveTag.put(Registry.BLOCK.getId(e.getKey()).toString(), new LongArrayTag(e.getValue()));
 			}
 
-			tag.put(SAVE_KEY, fibTag);
+			tag.put(SAVE_KEY, blockSaveTag);
 
 			return tag;
 		}
@@ -143,8 +144,8 @@ public class FibLib {
 		// whenever and wherever we want.
 		private void putWithInstance(Block block, BlockPos pos) {
 			if (fibs.containsKey(block)) {
-				blocks.putIfAbsent(block, new LongOpenHashSet());
-				blocks.get(block).add(pos.asLong());
+				trackedBlocks.putIfAbsent(block, new LongOpenHashSet());
+				trackedBlocks.get(block).add(pos.asLong());
 			}
 		}
 
@@ -157,9 +158,9 @@ public class FibLib {
 			return lookups.get(player.getUuid()).get(state);
 		}
 
-		private void removeWithInstance(ServerWorld world, BlockPos pos) {
-			if (blocks.containsKey(world.getBlockState(pos).getBlock()))
-				blocks.get(world.getBlockState(pos).getBlock()).remove(pos.asLong());
+		private void removeIfHasFib(ServerWorld world, BlockPos pos) {
+			if (trackedBlocks.containsKey(world.getBlockState(pos).getBlock()))
+				trackedBlocks.get(world.getBlockState(pos).getBlock()).remove(pos.asLong());
 		}
 
 		// API methods
@@ -175,7 +176,7 @@ public class FibLib {
 			instance.lookups.clear();
 
 			int i = 0;
-			for (Long l : Iterables.concat(FibLib.Blocks.getInstance(world).blocks.values())) {
+			for (Long l : Iterables.concat(FibLib.Blocks.getInstance(world).trackedBlocks.values())) {
 				world.getChunkManager().markForUpdate(BlockPos.fromLong(l));
 				++i;
 			}
@@ -192,9 +193,9 @@ public class FibLib {
 			FibLib.Blocks instance = FibLib.Blocks.getInstance(world);
 			instance.lookups.clear();
 
-			if (instance.blocks.containsKey(block)) {
+			if (instance.trackedBlocks.containsKey(block)) {
 				int i = 0;
-				for (Long l : instance.blocks.get(block)) {
+				for (Long l : instance.trackedBlocks.get(block)) {
 					world.getChunkManager().markForUpdate(BlockPos.fromLong(l));
 					++i;
 				}
@@ -214,8 +215,8 @@ public class FibLib {
 
 			int i = 0;
 			for (Block a : blocks) {
-				if (instance.blocks.containsKey(a)) {
-					for (Long l : instance.blocks.get(a)) {
+				if (instance.trackedBlocks.containsKey(a)) {
+					for (Long l : instance.trackedBlocks.get(a)) {
 						world.getChunkManager().markForUpdate(BlockPos.fromLong(l));
 						++i;
 					}
@@ -237,8 +238,8 @@ public class FibLib {
 
 			int i = 0;
 			for (Block a : blocks) {
-				if (instance.blocks.containsKey(a)) {
-					for (Long l : instance.blocks.get(a)) {
+				if (instance.trackedBlocks.containsKey(a)) {
+					for (Long l : instance.trackedBlocks.get(a)) {
 						world.getChunkManager().markForUpdate(BlockPos.fromLong(l));
 						++i;
 					}
@@ -325,22 +326,17 @@ public class FibLib {
 		}
 
 		public static void track(DimensionType dimension, BlockState state, BlockPos pos) {
-			if (ALL_FIB_BLOCKS.contains(state.getBlock())) {
-				PENDING_BLOCKS.putIfAbsent(dimension, new Stack<>());
-				PENDING_BLOCKS.get(dimension).add(new Pair<>(state.getBlock(), pos));
-			}
+			track(dimension,state.getBlock(),pos);
 		}
 
-
-
 		/**
-		 * Removes a block from tracking. Automatically called on block removal, see dev.hephaestus.fiblib.mixin.BlockMixin
+		 * Removes a block from tracking. Automatically called on block removal, see {@link BlockMixin}
 		 *
 		 * @param world the world that this block is in
-		 * @param pos   the position of the block we are going to keep track of
+		 * @param pos   the position of the block to be removed
 		 */
 		public static void stopTracking(ServerWorld world, BlockPos pos) {
-			FibLib.Blocks.getInstance(world).removeWithInstance(world, pos);
+			FibLib.Blocks.getInstance(world).removeIfHasFib(world, pos);
 		}
 	}
 }
