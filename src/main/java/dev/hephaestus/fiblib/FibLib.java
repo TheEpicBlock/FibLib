@@ -13,11 +13,9 @@ import net.minecraft.nbt.LongArrayTag;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.Pair;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.registry.Registry;
 import net.minecraft.world.PersistentState;
-import net.minecraft.world.dimension.DimensionType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -48,21 +46,16 @@ public class FibLib {
 	}
 
 	public static class Blocks extends PersistentState {
+    	private ServerWorld world;
 		private static final String SAVE_KEY = FibLib.SAVE_KEY + "_blocks";
 
-		private static final HashMap<DimensionType, ArrayList<Pair<Block, BlockFib>>> PRE_LOAD = new HashMap<>();
-		private static final HashSet<Block> ALL_FIB_BLOCKS = new HashSet<>();
-
-		private static final HashMap<DimensionType, Stack<Pair<Block, BlockPos>>> PENDING_BLOCKS = new HashMap<>();
-
+		private static final HashMap<Block, BlockFib> fibs = new HashMap<>();
 		private final HashMap<Block, LongSet> trackedBlocks = new HashMap<>();
-		private final HashMap<Block, BlockFib> fibs = new HashMap<>();
-
-		private final HashMap<UUID, HashMap<BlockState, BlockState>> lookups = new HashMap<>();
 
 		// Construction methods
 		private Blocks(ServerWorld world) {
 			super(SAVE_KEY);
+			this.world = world;
 
 			this.markDirty();
 		}
@@ -72,45 +65,12 @@ public class FibLib {
 					new FibLib.Blocks(world), SAVE_KEY
 			);
 
-			int i = 0;
-			if (PENDING_BLOCKS.containsKey(world.getDimension().getType())) {
-				Stack<Pair<Block, BlockPos>> stack = PENDING_BLOCKS.get(world.getDimension().getType());
-				while (!stack.isEmpty()) {
-					Pair<Block, BlockPos> pair = stack.pop();
-					instance.putWithInstance(pair.getLeft(), pair.getRight());
-					world.getChunkManager().markForUpdate(pair.getRight());
-					i++;
-				}
-			}
-
-//			if (i > 0) {
-//				FibLib.debug("Registered %d pre-loaded Block%s", i, i == 1 ? "" : "s");
-//			}
-
 			return instance;
 		}
 
 		// Convenience
 		private static FibLib.Blocks getInstance(ServerPlayerEntity player) {
 			return getInstance(player.getServerWorld());
-		}
-
-		/**
-		 * Registers fibs that were added before the World they exist in was loaded. Called in ServerWorld constructor.
-		 *
-		 * @param world the world we are loading
-		 */
-		@Internal
-		public static void registerPreloadedFibs(ServerWorld world) {
-			int i = 0;
-			if (PRE_LOAD.get(world.getDimension().getType()) != null) {
-				for (Pair<Block, BlockFib> p : PRE_LOAD.get(world.getDimension().getType())) {
-					FibLib.Blocks.register(world, p.getLeft(), p.getRight());
-					++i;
-				}
-			}
-
-			if (i > 0) FibLib.debug("Registered %d pre-loaded BlockFib%s", i, i == 1 ? "" : "s");
 		}
 
 		@Internal
@@ -142,26 +102,9 @@ public class FibLib {
 
 		// Because we only actually begin tracking the block if we have a fib that references it, it's safe to call put()
 		// whenever and wherever we want.
-		private void putWithInstance(Block block, BlockPos pos) {
-			if (fibs.containsKey(block)) {
-				trackedBlocks.putIfAbsent(block, new LongOpenHashSet());
-				trackedBlocks.get(block).add(pos.asLong());
-			}
-		}
 
-		private BlockState getWithInstance(BlockState state, ServerPlayerEntity player) {
-			lookups.putIfAbsent(player.getUuid(), new HashMap<>());
 
-			if (!lookups.get(player.getUuid()).containsKey(state))
-				lookups.get(player.getUuid()).put(state, fibs.getOrDefault(state.getBlock(), BlockFib.DEFAULT).get(state, player));
 
-			return lookups.get(player.getUuid()).get(state);
-		}
-
-		private void removeIfHasFib(ServerWorld world, BlockPos pos) {
-			if (trackedBlocks.containsKey(world.getBlockState(pos).getBlock()))
-				trackedBlocks.get(world.getBlockState(pos).getBlock()).remove(pos.asLong());
-		}
 
 		// API methods
 
@@ -173,7 +116,6 @@ public class FibLib {
 		 */
 		public static void update(ServerWorld world) {
 			FibLib.Blocks instance = FibLib.Blocks.getInstance(world);
-			instance.lookups.clear();
 
 			int i = 0;
 			for (Long l : Iterables.concat(FibLib.Blocks.getInstance(world).trackedBlocks.values())) {
@@ -191,7 +133,6 @@ public class FibLib {
 		 */
 		public static void update(ServerWorld world, Block block) {
 			FibLib.Blocks instance = FibLib.Blocks.getInstance(world);
-			instance.lookups.clear();
 
 			if (instance.trackedBlocks.containsKey(block)) {
 				int i = 0;
@@ -211,7 +152,6 @@ public class FibLib {
 		 */
 		public static void update(ServerWorld world, Block... blocks) {
 			FibLib.Blocks instance = FibLib.Blocks.getInstance(world);
-			instance.lookups.clear();
 
 			int i = 0;
 			for (Block a : blocks) {
@@ -234,7 +174,6 @@ public class FibLib {
 		 */
 		public static void update(ServerWorld world, Collection<Block> blocks) {
 			FibLib.Blocks instance = FibLib.Blocks.getInstance(world);
-			instance.lookups.clear();
 
 			int i = 0;
 			for (Block a : blocks) {
@@ -251,35 +190,19 @@ public class FibLib {
 
 
 		/**
-		 * Use this function to register Fibs when you already have access to a World.
+		 * Register a fib so it can be used.
 		 *
-		 * @param world the world the newly registered Fib will apply to
 		 * @param block the block to be fibbed
 		 * @param fib   the fib itself. Can be a lambda expression for simpler fibs, or an implementation of BlockFib for
 		 *              fibs that need some more complex processing
 		 */
-		public static void register(ServerWorld world, Block block, BlockFib fib) {
-			FibLib.Blocks.getInstance(world).fibs.put(block, fib);
-			FibLib.Blocks.ALL_FIB_BLOCKS.add(block);
-			FibLib.log("Registered a BlockFib for %s in %s", block.getTranslationKey(), world.getDimension().getType().toString());
+		public static void register(Block block, BlockFib fib) {
+			Blocks.fibs.put(block,fib);
+			FibLib.log("Registered a BlockFib for %s", block.getTranslationKey());
 		}
 
 		/**
-		 * This function is useful for registering Fibs before a world is available, i.e., in your ModInitializer
-		 *
-		 * @param dimensionType the dimension whose world we will eventually register our fibs in
-		 * @param block         the block to be fibbed, @see dev.hephaestus.fiblib.FibLib#register()
-		 * @param fib           the fib to register, @see dev.hephaestus.fiblib.FibLib#register()
-		 */
-		public static void register(DimensionType dimensionType, Block block, BlockFib fib) {
-			PRE_LOAD.putIfAbsent(dimensionType, new ArrayList<>());
-			PRE_LOAD.get(dimensionType).add(new Pair<>(block, fib));
-			FibLib.Blocks.ALL_FIB_BLOCKS.add(block);
-			FibLib.log("Pre-loaded a BlockFib for %s in %s", block.getTranslationKey(), dimensionType.toString());
-		}
-
-		/**
-		 * A convenience function so that we can get() without an instance.
+		 * Looks up what a block should look like for a player.
 		 *
 		 * @param state  the state of the block we're inquiring about. Note that because this is passed to a BlockFib, other
 		 *               aspects of the state than the Block may be used in determining the output
@@ -288,22 +211,33 @@ public class FibLib {
 		 */
 		@Internal
 		public static BlockState get(BlockState state, ServerPlayerEntity player) {
-			return player == null ? state : FibLib.Blocks.getInstance(player).getWithInstance(state, player);
+			if (player == null) {
+				return state;
+			}
+			return fibs.get(state.getBlock()).get(state,player);
 		}
 
+		private void track(Block block, BlockPos pos) {
+			if (fibs.containsKey(block)) {
+				trackedBlocks.putIfAbsent(block, new LongOpenHashSet());
+				trackedBlocks.get(block).add(pos.asLong());
+			}
+		}
 
 		/**
-		 * Begins tracking a block for updates. Any time a Fibber that applies to this block checks its conditions, it will
-		 * be against this entry. Automatically called on block add,see dev.hephaestus.fiblib.mixin.BlockMixin
+		 * Begins tracking a block for updates. You shouldn't have to call this manually
+		 *
 		 * @param world the world that this block is in
 		 * @param block the block we care about. used for selective updating
 		 * @param pos   the position of the block we are going to keep track of
 		 */
 		public static void track(ServerWorld world, Block block, BlockPos pos) {
-			FibLib.Blocks.getInstance(world).putWithInstance(block, pos);
+			FibLib.Blocks.getInstance(world).track(block, pos);
 		}
 
 		/**
+		 * Begins tracking a block for updates. You shouldn't have to call this manually
+		 *
 		 * @param world the world that this block is in
 		 * @param state the block state we care about; note that only the actual Block is used, state info is disregarded
 		 * @param pos   the position of the block we are going to keep track of
@@ -312,31 +246,20 @@ public class FibLib {
 			FibLib.Blocks.track(world, state.getBlock(), pos);
 		}
 
-		/**
-		 * This method allows you to register a block to be watched before the world it's in is finished being built.
-		 * This is useful for registering blocks to be tracked during worldgen.
-		 * @param block the block we care about. used for selective updating
-		 * @param pos   the position of the block we are going to keep track of
-		 */
-		public static void track(DimensionType dimension, Block block, BlockPos pos) {
-			if (ALL_FIB_BLOCKS.contains(block)) {
-				PENDING_BLOCKS.putIfAbsent(dimension, new Stack<>());
-				PENDING_BLOCKS.get(dimension).add(new Pair<>(block, pos));
-			}
-		}
-
-		public static void track(DimensionType dimension, BlockState state, BlockPos pos) {
-			track(dimension,state.getBlock(),pos);
+		private void stopTracking(BlockPos pos) {
+			Block block = world.getBlockState(pos).getBlock();
+			if (trackedBlocks.containsKey(block))
+				trackedBlocks.get(block).remove(pos.asLong());
 		}
 
 		/**
-		 * Removes a block from tracking. Automatically called on block removal, see {@link BlockMixin}
+		 * Removes a block from tracking. Automatically called on block removal, see {@link BlockMixin}; you shouldn't have to call this manually
 		 *
 		 * @param world the world that this block is in
 		 * @param pos   the position of the block to be removed
 		 */
 		public static void stopTracking(ServerWorld world, BlockPos pos) {
-			FibLib.Blocks.getInstance(world).removeIfHasFib(world, pos);
+			FibLib.Blocks.getInstance(world).stopTracking(pos);
 		}
 	}
 }
