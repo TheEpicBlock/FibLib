@@ -4,13 +4,12 @@ import net.minecraft.server.network.ServerPlayerEntity;
 
 @Internal
 public interface Fibber {
-    static Fibber fix(Object object, ServerPlayerEntity player) {
+    static void fix(Object object, ServerPlayerEntity player) {
         Fibber fixed = ((Fibber) object);
 
         if (object != null)
             fixed.fix(player);
 
-        return fixed;
     }
 
     void fix(ServerPlayerEntity player);

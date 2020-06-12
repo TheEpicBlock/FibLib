@@ -39,7 +39,7 @@ public abstract class ChunkDataS2CPacketFibber implements ChunkDataFibber {
 
     @Shadow protected abstract int getDataSize(WorldChunk chunk, int includedSectionsMark);
     @Shadow public abstract int writeData(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask);
-    @Shadow private ByteBuf getWriteBuffer() {return null;}
+    @Shadow protected abstract ByteBuf getWriteBuffer();
     @Shadow public abstract boolean isFullChunk();
 
     private ServerPlayerEntity player;

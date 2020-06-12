@@ -1,6 +1,5 @@
 package dev.hephaestus.fiblib;
 
-import com.google.common.collect.Iterables;
 import dev.hephaestus.fiblib.blocks.BlockFib;
 import dev.hephaestus.fiblib.mixin.blocks.BlockMixin;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;

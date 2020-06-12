@@ -10,13 +10,6 @@ archivesBaseName = project.archives_base_name
 version = project.mod_version
 group = project.maven_group
 
-repositories {
-	maven {
-		name = "Ladysnake Libs"
-		url = 'https://dl.bintray.com/ladysnake/libs'
-	}
-}
-
 dependencies {
 	//to change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -25,9 +18,6 @@ dependencies {
 
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
-
-	// Only used for testing, doesn't need to be included.
-	modImplementation "io.github.ladysnake:PlayerAbilityLib:${pal_version}"
 }
 
 processResources {
@@ -60,30 +50,4 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 
 jar {
 	from "LICENSE"
-}
-
-// configure the maven publication
-publishing {
-	publications {
-		mavenJava(MavenPublication) {
-			// add all the jars that should be included when publishing to maven
-			artifact(remapJar) {
-				builtBy remapJar
-			}
-			artifact(sourcesJar) {
-				builtBy remapSourcesJar
-			}
-		}
-	}
-
-	repositories {
-		maven {
-			name = "GithubPackages"
-			url "https://maven.pkg.github.com/Hephaestus-Dev/FibLib"
-			credentials {
-				username = "Hephaestus-Dev"
-				password = System.getenv("GITHUB_TOKEN")
-			}
-		}
-	}
 }

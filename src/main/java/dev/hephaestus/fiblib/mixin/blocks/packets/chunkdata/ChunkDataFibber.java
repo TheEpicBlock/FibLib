@@ -16,16 +16,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 @Mixin(ChunkDataS2CPacket.class)
-public class ChunkDataFibber implements Fibber {
+public abstract class ChunkDataFibber implements Fibber {
     @Inject(method = "writeData(Lnet/minecraft/util/PacketByteBuf;Lnet/minecraft/world/chunk/WorldChunk;I)I", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/chunk/ChunkSection;toPacket(Lnet/minecraft/util/PacketByteBuf;)V"), locals = LocalCapture.CAPTURE_FAILHARD)
     public void fixInjection(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask, CallbackInfoReturnable<Integer> cir, int i, ChunkSection[] chunkSections, int j, int k, ChunkSection chunkSection) {
         Fibber.fix(chunkSection, this.player);
     }
 
-    @Shadow
-    private int verticalStripBitmask;
-    @Shadow public int writeData(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask) {return 0;}
-    @Shadow private ByteBuf getWriteBuffer() {return null;}
+    @Shadow private int verticalStripBitmask;
+    @Shadow protected abstract ByteBuf getWriteBuffer();
+    @Shadow public abstract int writeData(PacketByteBuf packetByteBuf, WorldChunk chunk, int includedSectionsMask);
 
     private WorldChunk chunk;
     private int mask;
